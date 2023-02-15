@@ -28,14 +28,14 @@ SELECT DISTINCT(prescriber.specialty_description), SUM(prescription.total_claim_
 FROM prescriber
 	JOIN prescription 
 	ON prescriber.npi = prescription.npi
-GROUP BY prescriber.specialty_description
+GROUP BY DISTINCT(prescriber.specialty_description)
 ORDER BY SUM(prescription.total_claim_count) DESC;
 
 -- Answer: Family Practice, 9752347 claims
 
 --     b. Which specialty had the most total number of claims for opioids?
 
-SELECT DISTINCT(prescriber.specialty_description), SUM(prescription.total_claim_count)
+SELECT prescriber.specialty_description, COUNT(drug.opioid_drug_flag)
 FROM prescriber
 	JOIN prescription 
 	ON prescriber.npi = prescription.npi
@@ -43,19 +43,19 @@ FROM prescriber
 	ON prescription.drug_name = drug.drug_name
 WHERE drug.opioid_drug_flag = 'Y'
 GROUP BY prescriber.specialty_description
-ORDER BY SUM(prescription.total_claim_count) DESC;
+ORDER BY SUM(prescription.total_claim_count) DESC
 
--- Answer: Nurse Practicioner, 900845 claims
+-- Answer: Nurse Practicioner, 9551
 
 --     c. **Challenge Question:** Are there any specialties that appear in the prescriber table that have no associated prescriptions in the prescription table?
-SELECT prescriber.specialty_description, SUM(prescription.total_claim_count)
+SELECT prescriber.specialty_description, COUNT(prescription.drug_name) AS drug_name
 FROM prescriber
 	LEFT JOIN prescription 
 	ON prescriber.npi = prescription.npi
-WHERE prescription.total_claim_count IS NULL
-GROUP BY prescriber.specialty_description;
+GROUP BY prescriber.specialty_description
+ORDER BY drug_name ASC;
 
--- Answer: Yes, there are 92 specialties that have no associated prescriptions.
+-- Answer: Yes, there are 15 specialties that have no associated prescriptions.
 
 --     d. **Difficult Bonus:** *Do not attempt until you have solved all other problems!* For each specialty, report the percentage of total claims by that specialty which are for opioids. Which specialties have a high percentage of opioids?
 
@@ -73,8 +73,23 @@ ORDER BY SUM(prescription.total_drug_cost) DESC
 
 --     b. Which drug (generic_name) has the hightest total cost per day? **Bonus: Round your cost per day column to 2 decimal places. Google ROUND to see how this works.**
 
+SELECT drug.generic_name, ROUND((prescription.total_drug_cost/prescription.total_day_supply),2) AS cost_per_day
+FROM drug
+	JOIN prescription
+	ON drug.drug_name = prescription.drug_name
+ORDER BY cost_per_day DESC
+
+-- Answer: "IMMUN GLOB G(IGG)/GLY/IGA OV50"	$7141.11/day
+
 -- 4. 
 --     a. For each drug in the drug table, return the drug name and then a column named 'drug_type' which says 'opioid' for drugs which have opioid_drug_flag = 'Y', says 'antibiotic' for those drugs which have antibiotic_drug_flag = 'Y', and says 'neither' for all other drugs.
+
+SELECT drug.drug_name,
+	CASE
+		WHEN drug.opioid_drug_flag = 'Y' THEN 'opioid'
+		WHEN drug.antibiotic_drug_flag = 'Y' THEN 'antibiotic'
+		ELSE 'neither' END AS drug_type
+FROM drug
 
 --     b. Building off of the query you wrote for part a, determine whether more was spent (total_drug_cost) on opioids or on antibiotics. Hint: Format the total costs as MONEY for easier comparision.
 
