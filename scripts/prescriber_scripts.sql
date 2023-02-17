@@ -96,10 +96,10 @@ FROM drug
 
 SELECT
 	ROUND(SUM(prescription.total_drug_cost),2),
-	CASE 
+	(CASE 
 		WHEN drug.opioid_drug_flag = 'Y' THEN 'opioid'
 		WHEN drug.antibiotic_drug_flag = 'Y' THEN 'antibiotic'
-		END AS drug_type
+		END) AS drug_type
 FROM prescription
 JOIN DRUG
 ON prescription.drug_name = drug.drug_name
@@ -110,7 +110,24 @@ GROUP BY drug_type
 -- 5. 
 --     a. How many CBSAs are in Tennessee? **Warning:** The cbsa table contains information for all states, not just Tennessee.
 
+SELECT COUNT(cbsaname)
+FROM cbsa
+WHERE cbsaname LIKE '%TN%'
+
+-- Answer: 56 CBSAs are in Tennessee
+
 --     b. Which cbsa has the largest combined population? Which has the smallest? Report the CBSA name and total population.
+
+SELECT DISTINCT(TRIM(cbsa.cbsaname)), SUM(population.population)
+FROM cbsa
+JOIN zip_fips
+ON cbsa.fipscounty=zip_fips.fipscounty
+JOIN population
+ON zip_fips.fipscounty=population.fipscounty
+GROUP BY cbsa.cbsaname
+ORDER BY SUM(population) DESC
+
+--Answer: The largest population is Memphis, TN-MS-AR with 67870189, the smallest is Morristown, TN with 1163520.
 
 --     c. What is the largest (in terms of population) county which is not included in a CBSA? Report the county name and population.
 
