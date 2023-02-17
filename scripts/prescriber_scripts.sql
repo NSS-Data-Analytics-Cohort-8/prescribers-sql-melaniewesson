@@ -55,6 +55,7 @@ FROM prescriber
 GROUP BY prescriber.specialty_description
 ORDER BY drug_name ASC;
 
+
 -- Answer: Yes, there are 15 specialties that have no associated prescriptions.
 
 --     d. **Difficult Bonus:** *Do not attempt until you have solved all other problems!* For each specialty, report the percentage of total claims by that specialty which are for opioids. Which specialties have a high percentage of opioids?
@@ -64,7 +65,7 @@ ORDER BY drug_name ASC;
 
 SELECT drug.generic_name, SUM(prescription.total_drug_cost)
 FROM drug
-	JOIN prescription
+	INNER JOIN prescription
 	ON drug.drug_name = prescription.drug_name
 GROUP BY drug.generic_name
 ORDER BY SUM(prescription.total_drug_cost) DESC
@@ -92,6 +93,19 @@ SELECT drug.drug_name,
 FROM drug
 
 --     b. Building off of the query you wrote for part a, determine whether more was spent (total_drug_cost) on opioids or on antibiotics. Hint: Format the total costs as MONEY for easier comparision.
+
+SELECT
+	ROUND(SUM(prescription.total_drug_cost),2),
+	CASE 
+		WHEN drug.opioid_drug_flag = 'Y' THEN 'opioid'
+		WHEN drug.antibiotic_drug_flag = 'Y' THEN 'antibiotic'
+		END AS drug_type
+FROM prescription
+JOIN DRUG
+ON prescription.drug_name = drug.drug_name
+GROUP BY drug_type
+
+--Answer: More was spent on opioids, $105,080,626.37 versus $38,435,121.26 on antibiotics.
 
 -- 5. 
 --     a. How many CBSAs are in Tennessee? **Warning:** The cbsa table contains information for all states, not just Tennessee.
