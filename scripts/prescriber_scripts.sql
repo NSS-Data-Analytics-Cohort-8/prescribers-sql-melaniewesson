@@ -180,6 +180,27 @@ WHERE total_claim_count > 3000
 
 --     a. First, create a list of all npi/drug_name combinations for pain management specialists (specialty_description = 'Pain Managment') in the city of Nashville (nppes_provider_city = 'NASHVILLE'), where the drug is an opioid (opiod_drug_flag = 'Y'). **Warning:** Double-check your query before running it. You will only need to use the prescriber and drug tables since you don't need the claims numbers yet.
 
+SELECT prescriber.npi, prescription.drug_name,
+	(CASE WHEN drug.opioid_drug_flag = 'Y' THEN 'opioid' ELSE 'not opioid' END) AS drug_type
+FROM prescriber
+CROSS JOIN prescription
+JOIN drug
+ON prescription.drug_name=drug.drug_name
+WHERE nppes_provider_city = 'NASHVILLE'
+AND specialty_description = 'Pain Management'
+AND (CASE WHEN drug.opioid_drug_flag = 'Y' THEN 'opioid' ELSE 'not opioid' END) = 'opioid';
+
+
+
 --     b. Next, report the number of claims per drug per prescriber. Be sure to include all combinations, whether or not the prescriber had any claims. You should report the npi, the drug name, and the number of claims (total_claim_count).
+
+SELECT prescriber.npi, prescription.drug_name, prescription.total_claim_count
+FROM prescriber
+CROSS JOIN prescription
+JOIN drug
+ON prescription.drug_name=drug.drug_name
+WHERE nppes_provider_city = 'NASHVILLE'
+AND specialty_description = 'Pain Management'
+AND (CASE WHEN drug.opioid_drug_flag = 'Y' THEN 'opioid' ELSE 'not opioid' END) = 'opioid';
     
 --     c. Finally, if you have not done so already, fill in any missing values for total_claim_count with 0. Hint - Google the COALESCE function.
