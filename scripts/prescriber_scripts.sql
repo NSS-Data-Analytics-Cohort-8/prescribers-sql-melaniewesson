@@ -191,15 +191,15 @@ ORDER BY npi;
 
 --     b. Next, report the number of claims per drug per prescriber. Be sure to include all combinations, whether or not the prescriber had any claims. You should report the npi, the drug name, and the number of claims (total_claim_count).
 
-SELECT prescriber.npi, prescription.drug_name, prescription.total_claim_count
+SELECT prescriber.npi, d.drug_name, prescription.total_claim_count
 FROM prescriber
-LEFT JOIN prescription
+	INNER JOIN prescription
 	ON prescriber.npi=prescription.npi
-	CROSS JOIN drug
+	CROSS JOIN drug AS d
 WHERE prescriber.nppes_provider_city = 'NASHVILLE'
 AND specialty_description = 'Pain Management'
-AND (CASE WHEN drug.opioid_drug_flag = 'Y' THEN 'opioid' ELSE 'not opioid' END) = 'opioid'
-GROUP BY prescription.drug_name, prescriber.npi, prescription.total_claim_count
+AND d.opioid_drug_flag = 'Y'
+GROUP BY prescriber.npi, d.drug_name, prescription.total_claim_count
 ORDER BY npi;
   
 --     c. Finally, if you have not done so already, fill in any missing values for total_claim_count with 0. Hint - Google the COALESCE function.
@@ -219,9 +219,52 @@ ON prescriber.npi=prescription.npi
 -- 2.
 --     a. Find the top five drugs (generic_name) prescribed by prescribers with the specialty of Family Practice.
 
+SELECT generic_name, prescription.total_claim_count
+FROM drug
+LEFT JOIN prescription 
+ON drug.drug_name=prescription.drug_name
+LEFT JOIN prescriber
+ON prescription.npi=prescriber.npi
+WHERE specialty_description='Family Practice'
+AND total_claim_count IS NOT NULL
+GROUP BY generic_name, prescription.total_claim_count
+ORDER BY total_claim_count DESC
+LIMIT 5;
+
+--Answer: "OXYCODONE HCL", "LISINOPRIL", "GABAPENTIN", "HYDROCODONE/ACETAMINOPHEN", "LEVOTHYROXINE SODIUM"
+
 --     b. Find the top five drugs (generic_name) prescribed by prescribers with the specialty of Cardiology.
 
+SELECT DISTINCT(generic_name), prescription.total_claim_count
+FROM drug
+JOIN prescription 
+ON drug.drug_name=prescription.drug_name
+JOIN prescriber
+ON prescription.npi=prescriber.npi
+WHERE specialty_description='Cardiology'
+AND total_claim_count IS NOT NULL
+GROUP BY generic_name, prescription.total_claim_count
+ORDER BY prescription.total_claim_count DESC
+LIMIT 5;
+
+--Answer "ATORVASTATIN CALCIUM", "ATORVASTATIN CALCIUM", "CLOPIDOGREL BISULFATE", "ATORVASTATIN CALCIUM", "CARVEDILOL"
+
+
 --     c. Which drugs are in the top five prescribed by Family Practice prescribers and Cardiologists? Combine what you did for parts a and b into a single query to answer this question.
+
+SELECT DISTINCT(generic_name), prescription.total_claim_count
+FROM drug
+LEFT JOIN prescription 
+ON drug.drug_name=prescription.drug_name
+LEFT JOIN prescriber
+ON prescription.npi=prescriber.npi
+WHERE specialty_description IN ('Family Practice','Cardiology')
+AND total_claim_count IS NOT NULL
+GROUP BY generic_name, prescription.total_claim_count
+ORDER BY total_claim_count DESC
+LIMIT 5;
+
+--Answer: 
 
 -- 3. Your goal in this question is to generate a list of the top prescribers in each of the major metropolitan areas of Tennessee.
 --     a. First, write a query that finds the top 5 prescribers in Nashville in terms of the total number of claims (total_claim_count) across all drugs. Report the npi, the total number of claims, and include a column showing the city.
