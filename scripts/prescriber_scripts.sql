@@ -190,6 +190,7 @@ WHERE nppes_provider_city = 'NASHVILLE'
 AND specialty_description = 'Pain Management'
 AND (CASE WHEN drug.opioid_drug_flag = 'Y' THEN 'opioid' ELSE 'not opioid' END) = 'opioid';
 
+---***NOT SURE IF THIS IS CORRECT, SHOULD THERE BE MORE ROWS?  UNSURE ABOUT CROSSJOIN
 
 
 --     b. Next, report the number of claims per drug per prescriber. Be sure to include all combinations, whether or not the prescriber had any claims. You should report the npi, the drug name, and the number of claims (total_claim_count).
@@ -204,3 +205,4 @@ AND specialty_description = 'Pain Management'
 AND (CASE WHEN drug.opioid_drug_flag = 'Y' THEN 'opioid' ELSE 'not opioid' END) = 'opioid';
     
 --     c. Finally, if you have not done so already, fill in any missing values for total_claim_count with 0. Hint - Google the COALESCE function.
+--**MY SET DOESN'T HAVE ANY ZEROES??
