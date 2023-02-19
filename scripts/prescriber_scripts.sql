@@ -1,41 +1,43 @@
 -- 1. 
 --     a. Which prescriber had the highest total number of claims (totaled over all drugs)? Report the npi and the total number of claims.
 
-SELECT prescriber.npi, prescription.total_claim_count
-FROM prescriber
-	JOIN prescription
-	ON prescriber.npi = prescription.npi
-ORDER BY total_claim_count DESC
+SELECT prescription.npi, SUM(prescription.total_claim_count)
+FROM prescription
+GROUP BY prescription.npi
+ORDER BY SUM(total_claim_count) DESC
 LIMIT 1;
 
--- Answer: NPI 1912011792 had 4538 claims
+-- Answer: 1881634483	99707
+
 
 --     b. Repeat the above, but this time report the nppes_provider_first_name, nppes_provider_last_org_name,  specialty_description, and the total number of claims.
 
-SELECT prescriber.nppes_provider_first_name, prescriber.nppes_provider_last_org_name, prescriber.specialty_description, prescription.total_claim_count
+SELECT prescriber.nppes_provider_first_name, prescriber.nppes_provider_last_org_name, prescriber.specialty_description, SUM(prescription.total_claim_count) as rxcount
 FROM prescriber
 	JOIN prescription
 	ON prescriber.npi = prescription.npi
-ORDER BY total_claim_count DESC
+GROUP BY prescriber.nppes_provider_first_name, prescriber.nppes_provider_last_org_name, prescriber.specialty_description
+ORDER BY rxcount DESC
 LIMIT 1;
 
---Answer: David Coffey, Family Practice, 4538 claims
+--Answer: "BRUCE"	"PENDLEY"	"Family Practice"	99707
+
 
 -- 2. 
 --     a. Which specialty had the most total number of claims (totaled over all drugs)?
 
-SELECT DISTINCT(prescriber.specialty_description), SUM(prescription.total_claim_count)
+SELECT DISTINCT(prescriber.specialty_description), SUM(prescription.total_claim_count) as claimcount
 FROM prescriber
 	JOIN prescription 
 	ON prescriber.npi = prescription.npi
 GROUP BY DISTINCT(prescriber.specialty_description)
-ORDER BY SUM(prescription.total_claim_count) DESC;
+ORDER BY claimcount DESC;
 
 -- Answer: Family Practice, 9752347 claims
 
 --     b. Which specialty had the most total number of claims for opioids?
 
-SELECT prescriber.specialty_description, COUNT(drug.opioid_drug_flag)
+SELECT prescriber.specialty_description, SUM(total_claim_count) AS totalclaim
 FROM prescriber
 	JOIN prescription 
 	ON prescriber.npi = prescription.npi
@@ -43,9 +45,9 @@ FROM prescriber
 	ON prescription.drug_name = drug.drug_name
 WHERE drug.opioid_drug_flag = 'Y'
 GROUP BY prescriber.specialty_description
-ORDER BY SUM(prescription.total_claim_count) DESC
+ORDER BY totalclaim DESC
 
--- Answer: Nurse Practicioner, 9551
+-- Answer: Nurse Practicioner, 900845
 
 --     c. **Challenge Question:** Are there any specialties that appear in the prescriber table that have no associated prescriptions in the prescription table?
 SELECT prescriber.specialty_description, COUNT(prescription.drug_name) AS drug_name
@@ -63,24 +65,26 @@ ORDER BY drug_name ASC;
 -- 3. 
 --     a. Which drug (generic_name) had the highest total drug cost?
 
-SELECT drug.generic_name, SUM(prescription.total_drug_cost)
+SELECT drug.generic_name, SUM(prescription.total_drug_cost) AS totalcost
 FROM drug
 	INNER JOIN prescription
 	ON drug.drug_name = prescription.drug_name
 GROUP BY drug.generic_name
-ORDER BY SUM(prescription.total_drug_cost) DESC
+ORDER BY totalcost DESC
 
 -- Answer: "INSULIN GLARGINE,HUM.REC.ANLOG"	104264066.35
 
 --     b. Which drug (generic_name) has the hightest total cost per day? **Bonus: Round your cost per day column to 2 decimal places. Google ROUND to see how this works.**
 
-SELECT drug.generic_name, ROUND((prescription.total_drug_cost/prescription.total_day_supply),2) AS cost_per_day
+SELECT drug.generic_name, ROUND(SUM(prescription.total_drug_cost)/SUM(prescription.total_day_supply),2) AS cost_per_day
 FROM drug
 	JOIN prescription
 	ON drug.drug_name = prescription.drug_name
+GROUP BY drug.generic_name
 ORDER BY cost_per_day DESC
 
--- Answer: "IMMUN GLOB G(IGG)/GLY/IGA OV50"	$7141.11/day
+-- Answer: "C1 ESTERASE INHIBITOR"	3495.22
+
 
 -- 4. 
 --     a. For each drug in the drug table, return the drug name and then a column named 'drug_type' which says 'opioid' for drugs which have opioid_drug_flag = 'Y', says 'antibiotic' for those drugs which have antibiotic_drug_flag = 'Y', and says 'neither' for all other drugs.
@@ -110,24 +114,25 @@ GROUP BY drug_type
 -- 5. 
 --     a. How many CBSAs are in Tennessee? **Warning:** The cbsa table contains information for all states, not just Tennessee.
 
-SELECT COUNT(cbsaname)
+SELECT COUNT(DISTINCT cbsaname)
 FROM cbsa
 WHERE cbsaname LIKE '%TN%'
 
--- Answer: 56 CBSAs are in Tennessee
+-- Answer: 10 CBSAs are in Tennessee
 
 --     b. Which cbsa has the largest combined population? Which has the smallest? Report the CBSA name and total population.
 
-SELECT DISTINCT(TRIM(cbsa.cbsaname)), SUM(population.population)
+SELECT DISTINCT cbsa.cbsaname, SUM(population.population) AS totalpopulation
 FROM cbsa
-JOIN zip_fips
+INNER JOIN zip_fips
 ON cbsa.fipscounty=zip_fips.fipscounty
-JOIN population
+INNER JOIN population
 ON zip_fips.fipscounty=population.fipscounty
 GROUP BY cbsa.cbsaname
-ORDER BY SUM(population) DESC
+ORDER BY totalpopulation DESC
 
 --Answer: The largest population is Memphis, TN-MS-AR with 67870189, the smallest is Morristown, TN with 1163520.
+--******THIS IS NOT THE RIGHT ANSWER, SHOULD BE NASHVILLE FIRST?
 
 --     c. What is the largest (in terms of population) county which is not included in a CBSA? Report the county name and population.
 
@@ -167,14 +172,14 @@ WHERE total_claim_count >= 3000;
 
 SELECT prescription.drug_name, total_claim_count,
 	(SELECT 
-		CASE WHEN drug.opioid_drug_flag = 'Y' THEN 'opioid' ELSE 'not opioid' END) AS drug_type, prescriber.nppes_provider_first_name, prescriber.nppes_provider_last_org_name
+		CASE WHEN drug.opioid_drug_flag = 'Y' THEN 'opioid' 
+	 ELSE 'not opioid' END) AS drug_type, prescriber.nppes_provider_first_name, prescriber.nppes_provider_last_org_name
 FROM prescription
-JOIN drug
+JOIN prescriber
+ON prescription.npi=prescriber.npi
+LEFT JOIN drug
 ON prescription.drug_name = drug.drug_name
-JOIN prescriber 
-ON prescription.npi = prescriber.npi
-WHERE total_claim_count > 3000
-
+WHERE total_claim_count >= 3000;
 
 -- 7. The goal of this exercise is to generate a full list of all pain management specialists in Nashville and the number of claims they had for each opioid. **Hint:** The results from all 3 parts will have 637 rows.
 
@@ -191,19 +196,31 @@ ORDER BY npi;
 
 --     b. Next, report the number of claims per drug per prescriber. Be sure to include all combinations, whether or not the prescriber had any claims. You should report the npi, the drug name, and the number of claims (total_claim_count).
 
-SELECT prescriber.npi, d.drug_name, prescription.total_claim_count
+SELECT prescriber.npi, drug.drug_name, prescription.total_claim_count
 FROM prescriber
-	INNER JOIN prescription
-	ON prescriber.npi=prescription.npi
-	CROSS JOIN drug AS d
+	CROSS JOIN drug
+	FULL JOIN prescription
+	ON drug.drug_name=prescription.drug_name
+	AND prescription.npi=prescriber.npi
 WHERE prescriber.nppes_provider_city = 'NASHVILLE'
 AND specialty_description = 'Pain Management'
-AND d.opioid_drug_flag = 'Y'
-GROUP BY prescriber.npi, d.drug_name, prescription.total_claim_count
+AND drug.opioid_drug_flag = 'Y'
+GROUP BY prescriber.npi, drug.drug_name, prescription.total_claim_count
 ORDER BY npi;
-  
+
+
 --     c. Finally, if you have not done so already, fill in any missing values for total_claim_count with 0. Hint - Google the COALESCE function.
---**MY SET DOESN'T HAVE ANY ZEROES??
+
+SELECT prescriber.npi, drug.drug_name, COALESCE(prescription.total_claim_count,0) AS total_claim_count
+FROM prescriber
+	CROSS JOIN drug
+	FULL JOIN prescription
+	ON drug.drug_name=prescription.drug_name
+	AND prescription.npi=prescriber.npi
+WHERE prescriber.nppes_provider_city = 'NASHVILLE'
+AND specialty_description = 'Pain Management'
+AND drug.opioid_drug_flag = 'Y'
+ORDER BY prescriber.npi;
 
 --BONUSES
 
@@ -214,61 +231,70 @@ FROM prescriber
 LEFT JOIN prescription
 ON prescriber.npi=prescription.npi
 
---Answer: 4458 npi numbers
+--Answer: 660516-656058= 4458 npi numbers
 
 -- 2.
 --     a. Find the top five drugs (generic_name) prescribed by prescribers with the specialty of Family Practice.
 
-SELECT generic_name, prescription.total_claim_count
+SELECT generic_name, SUM(prescription.total_claim_count) AS rxcount
 FROM drug
-LEFT JOIN prescription 
+RIGHT JOIN prescription 
 ON drug.drug_name=prescription.drug_name
 LEFT JOIN prescriber
 ON prescription.npi=prescriber.npi
 WHERE specialty_description='Family Practice'
 AND total_claim_count IS NOT NULL
-GROUP BY generic_name, prescription.total_claim_count
-ORDER BY total_claim_count DESC
+GROUP BY generic_name
+ORDER BY rxcount DESC
 LIMIT 5;
 
---Answer: "OXYCODONE HCL", "LISINOPRIL", "GABAPENTIN", "HYDROCODONE/ACETAMINOPHEN", "LEVOTHYROXINE SODIUM"
+--Answer: "LEVOTHYROXINE SODIUM", "LISINOPRIL", "ATORVASTATIN CALCIUM", "AMLODIPINE BESYLATE", "OMEPRAZOLE"
 
 --     b. Find the top five drugs (generic_name) prescribed by prescribers with the specialty of Cardiology.
 
-SELECT DISTINCT(generic_name), prescription.total_claim_count
+SELECT generic_name, SUM(prescription.total_claim_count) AS rxcount
 FROM drug
-JOIN prescription 
-ON drug.drug_name=prescription.drug_name
-JOIN prescriber
+CROSS JOIN prescriber
+JOIN prescription
 ON prescription.npi=prescriber.npi
+AND drug.drug_name=prescription.drug_name
 WHERE specialty_description='Cardiology'
 AND total_claim_count IS NOT NULL
-GROUP BY generic_name, prescription.total_claim_count
-ORDER BY prescription.total_claim_count DESC
+GROUP BY generic_name
+ORDER BY  rxcount DESC
 LIMIT 5;
 
---Answer "ATORVASTATIN CALCIUM", "ATORVASTATIN CALCIUM", "CLOPIDOGREL BISULFATE", "ATORVASTATIN CALCIUM", "CARVEDILOL"
-
+--Answer ""ATORVASTATIN CALCIUM", "CARVEDILOL", "METOPROLOL TARTRATE", "CLOPIDOGREL BISULFATE", "AMLODIPINE BESYLATE"
 
 --     c. Which drugs are in the top five prescribed by Family Practice prescribers and Cardiologists? Combine what you did for parts a and b into a single query to answer this question.
 
-SELECT DISTINCT(generic_name), prescription.total_claim_count
+SELECT generic_name, SUM(prescription.total_claim_count) AS totalcount
 FROM drug
-LEFT JOIN prescription 
-ON drug.drug_name=prescription.drug_name
-LEFT JOIN prescriber
+CROSS JOIN prescriber
+JOIN prescription
 ON prescription.npi=prescriber.npi
+AND drug.drug_name=prescription.drug_name
 WHERE specialty_description IN ('Family Practice','Cardiology')
 AND total_claim_count IS NOT NULL
-GROUP BY generic_name, prescription.total_claim_count
-ORDER BY total_claim_count DESC
+GROUP BY generic_name
+ORDER BY totalcount DESC
 LIMIT 5;
 
---Answer: 
+--Answer: "ATORVASTATIN CALCIUM", "LEVOTHYROXINE SODIUM", "AMLODIPINE BESYLATE", "LISINOPRIL", "FUROSEMIDE"
 
 -- 3. Your goal in this question is to generate a list of the top prescribers in each of the major metropolitan areas of Tennessee.
 --     a. First, write a query that finds the top 5 prescribers in Nashville in terms of the total number of claims (total_claim_count) across all drugs. Report the npi, the total number of claims, and include a column showing the city.
-    
+
+SELECT prescriber.npi, SUM(prescription.total_claim_count) AS rxcount, prescriber.nppes_provider_city
+FROM prescriber
+LEFT JOIN prescription
+ON prescriber.npi=prescription.npi
+WHERE prescription.total_claim_count IS NOT NULL
+AND prescriber.nppes_provider_city = 'NASHVILLE'
+GROUP BY prescriber.npi, prescriber.nppes_provider_city
+ORDER BY rxcount DESC;
+
+  
 --     b. Now, report the same for Memphis.
     
 --     c. Combine your results from a and b, along with the results for Knoxville and Chattanooga.
